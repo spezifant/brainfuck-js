@@ -4,68 +4,44 @@ const MEMORY_SIZE = 16;
 
 const code = process.argv[2];
 
-let memory = new ArrayBuffer(MEMORY_SIZE);
-let memoryView = new Uint8Array(memory);
+let buffer = new ArrayBuffer(MEMORY_SIZE);
+let memory = new Uint8Array(buffer);
 
 let ptrCode = 0;
 let ptrMemory = 0;
 
+let loopMap = {};
+let loopMapRev = {};
+
+// Pre-calculate bracket pairings in o(n)
 let loopStack = [];
+for (let i = 0; i < code.length; ++i) {
+    if (code[i] === "[") {
+        loopStack.push(i);
+    }
+    else if (code[i] === "]") {
+        let startPos = loopStack.pop();
+
+        loopMap[startPos] = i;
+        loopMapRev[i] = startPos;
+    }
+}
 
 while (true) {
     let c = code[ptrCode];
 
     switch (c) {
-        case "<":
-            --ptrMemory;
-            break;
-        case ">":
-            ++ptrMemory;
-            break;
-        case "+":
-            ++memoryView[ptrMemory];
-            break;
-        case "-":
-            --memoryView[ptrMemory];
-            break;
-        case ".":
-            process.stdout.write(String.fromCharCode(memoryView[ptrMemory]));
-            break;
-        case "[":
-            // Skip code between brakets
-            if (memoryView[ptrMemory] === 0) {
-                let openBrackets = 1;
-
-                do {
-                    ++ptrCode;
-
-                    if (code[ptrCode] === "[") {
-                        ++openBrackets;
-                    }
-                    else if (code[ptrCode] === "]") {
-                        --openBrackets;
-                    }
-                } while (openBrackets > 0);
-            }
-            else {
-                loopStack.push(ptrCode);
-            }
-            break;
-        case "]":
-            // Jump to beginning of loop
-            if (memoryView[ptrMemory] !== 0) {
-                ptrCode = loopStack[loopStack.length - 1];
-            }
-            // Loop end
-            else {
-                loopStack.pop();
-            }
-            break;
+        case "<": --ptrMemory; break;
+        case ">": ++ptrMemory; break;
+        case "+": ++memory[ptrMemory]; break;
+        case "-": --memory[ptrMemory]; break;
+        case ".": process.stdout.write(String.fromCharCode(memory[ptrMemory])); break;
+        case "[": ! memory[ptrMemory] ? ptrCode = loopMap[ptrCode] : 0; break;
+        case "]": memory[ptrMemory] ? ptrCode = loopMapRev[ptrCode] : 0; break;
+        default: break;
     }
 
-    ++ptrCode;
-
-    if (ptrCode >= code.length) {
+    if (++ptrCode >= code.length) {
         break;
     }
 }
